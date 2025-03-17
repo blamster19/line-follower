@@ -17,3 +17,9 @@
 * Driving test: **failed**
 	* Motors pop out of the chassis under the load of battery
 	* Motors do not move when weighted down with battery
+
+## 2025-03-10 -- 2025-03-16
+
+* Raising voltage: **failed**
+	* Raspberry Pi Pico and potentially motor driver got fried
+	* New parts ordered
