@@ -23,3 +23,9 @@
 * Raising voltage: **failed**
 	* Raspberry Pi Pico and potentially motor driver got fried
 	* New parts ordered
+
+## 2025-03-17 -- 2025-03-23
+
+* Arrival of parts: **ok**
+* Update of chassis model: **ok**
+* Print of new chassis: **ok**
