@@ -29,3 +29,11 @@
 * Arrival of parts: **ok**
 * Update of chassis model: **ok**
 * Print of new chassis: **ok**
+
+## 2025-03-24 -- 2025-03-30
+
+* New motor driver: **ok**
+* New power source: **ok**
+* Drive test: **ok**
+* Analog pin expander: **ok**
+* Two-sensor reading: **ok**
