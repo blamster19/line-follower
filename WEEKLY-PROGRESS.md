@@ -37,3 +37,14 @@
 * Drive test: **ok**
 * Analog pin expander: **ok**
 * Two-sensor reading: **ok**
+
+## 2025-03-31 -- 2025-04-06
+
+* Sensor calibration preliminary steps
+
+## 2025-04-07 -- 2025-04-13
+
+* Sensor calibration: **partial**
+* Sensor code cleanup: **ok**
+* Update of chassis model: **ok**
+* New parts order: **ok**
