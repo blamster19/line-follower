@@ -4,6 +4,14 @@ from breakout_ioexpander import BreakoutIOExpander
 from array import array 
 from machine import Pin, PWM
 
+STOP = 0
+RIGHTRIGHT = 1
+RIGHT = 2
+STRAIGHT = 3
+LEFT = 4
+LEFTLEFT = 5
+NONE = 6
+
 # Motor control pins
 m1 = PWM(Pin(20))
 m2 = PWM(Pin(21))
@@ -47,6 +55,33 @@ def motor_stop():
         m.duty_u16(0)
 
 
+def set_motors(direction):
+    if direction == STRAIGHT:
+        # all sensors on line - go straight
+        motor1_forward(max_speed)
+        motor2_forward(max_speed)
+        #print('going straight')
+    elif direction == LEFT:
+        # left detection - gentle left turn
+        motor1_forward(max_speed)
+        motor2_forward(lesser_speed)
+        #print('left turn')
+    elif direction == RIGHT:
+        # right detection - gentle right turn
+        motor1_forward(lesser_speed)
+        motor2_forward(max_speed)
+        #print('right turn')
+    elif direction == LEFTLEFT:
+        # far left detection - sharp left turn
+        motor1_forward(100)
+        motor2_reverse(max_speed)
+    elif direction == RIGHTRIGHT:
+        # far right detection - sharp right turn
+        motor1_reverse(max_speed)
+        motor2_forward(100)
+    elif direction == STOP:
+        motor1_forward(0)
+        motor2_forward(0)
 
 THRESHOLD = 0.5
 
@@ -55,8 +90,8 @@ if __name__ == '__main__':
 
     PINS_BREAKOUT_GARDEN = {"sda": 12, "scl": 13}
 
-    sensor_thresholds = {1: 0.5, 2: 0.5, 3: 0.5, 4: 0.5, 5: 0.5}
-    sensor_positions = {1: "rightright", 2: "center", 3: "right", 4: "left", 5: "leftleft"}
+    sensor_thresholds = {1: 0.5, 2: 2, 3: 0.5, 4: 0.5, 5: 0.5}
+    sensor_positions = {1: "rightright", 2: "right", 3: "center", 4: "left", 5: "leftleft"}
     positions_sensors = {value: key for key, value in sensor_positions.items()}
     sensor_pins = {1: 10, 2: 7, 3: 9, 4: 11, 5: 13}
     ioe_adc_pins = sensor_pins.values()
@@ -72,7 +107,9 @@ if __name__ == '__main__':
     
     max_speed = 50
     lesser_speed = 30
-    
+
+    memory_length = 50
+    last_not_none = 0
     while True:
         # read sensors
         sensor_voltages = {}
@@ -86,41 +123,42 @@ if __name__ == '__main__':
         voltage_center = sensor_voltages[positions_sensors["center"]]
         voltage_leftleft = sensor_voltages[positions_sensors["leftleft"]]
         voltage_rightright = sensor_voltages[positions_sensors["rightright"]]
+        direction = STRAIGHT
         # P controller using all four sensors
-        if (voltage_center > THRESHOLD):
+#         if (voltage_center > sensor_thresholds[positions_sensors["center"]]):
             # all sensors on line - go straight
-            speed_l = max_speed
-            speed_r = max_speed
+#             direction = "straight"
             #print('going straight')
-        elif voltage_left > THRESHOLD:
-            # far left detection - sharp left turn
-            speed_l = max_speed
-            speed_r = lesser_speed
+        if (voltage_left > sensor_thresholds[positions_sensors["left"]] and voltage_right > sensor_thresholds[positions_sensors["right"]]):
+            direction = STRAIGHT
+            last_not_none = 0
+        elif voltage_left > sensor_thresholds[positions_sensors["left"]]:
+#         if voltage_left > sensor_thresholds[positions_sensors["left"]]:
+            # left detection - gentle left turn
+            direction = LEFT
+            last_not_none = 0
             #print('left turn')
-        elif voltage_right > THRESHOLD:
-            # far right detection - sharp right turn
-            speed_l = lesser_speed
-            speed_r = max_speed
+        elif voltage_right > sensor_thresholds[positions_sensors["right"]]:
+            # right detection - gentle right turn
+            direction = RIGHT
+            last_not_none = 0
             #print('right turn')
-        elif voltage_leftleft > THRESHOLD:
-        #     # left detection - gentle left turn
-             speed_l = 100
-             speed_r = lesser_speed
-        elif voltage_rightright > THRESHOLD:
-        #     # right detection - gentle right turn
-             speed_l = lesser_speed
-             speed_r = 100
-        else:
+        elif voltage_leftleft > sensor_thresholds[positions_sensors["leftleft"]]:
+            # far left detection - sharp left turn
+            direction = LEFTLEFT
+            last_not_none = 0
+        elif voltage_rightright > sensor_thresholds[positions_sensors["rightright"]]:
+            # far right detection - sharp right turn
+            direction = RIGHTRIGHT
+            last_not_none = 0
+        elif last_not_none >= memory_length:
             # no line detected - stop
-            speed_l = 0
-            speed_r = 0
+            direction = STOP
             #print('not on line')
-        #speed_l = 0#max_speed
-        #speed_r = 0#max_speed
-        motor1_forward(speed_l)
-        motor2_forward(speed_r)
-        #print("left=" + str(is_on_line_left) + " right=" + str(is_on_line_right))
-        print("left=" + str(voltage_left) + " center=" + str(voltage_right) + " right=" + str(voltage_center) + " leftleft=" + str(voltage_leftleft) + " rightright=" + str(voltage_rightright))
+        set_motors(direction)
+
+        print("leftleft=" + str(voltage_leftleft) + " left=" + str(voltage_left) + " center=" + str(voltage_center) + " right=" + str(voltage_right) + " rightright=" + str(voltage_rightright))
+#         print(direction)
         sleep(0.02)
 
 
