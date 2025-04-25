@@ -1,66 +1,78 @@
-from picozero import Pin, pico_led
 from time import sleep
-from motor import Motor, pico_motor_shim
-from pimoroni import NORMAL_DIR, REVERSED_DIR
-from array import array 
+import time
+from sensors import Sensors
+from motors import Motors
+from pid import PDController
 
-if __name__ == '__main__':
-    # set pins
+motor_pins = {
+    "left_forward": 18,
+    "left_reverse": 19,
+    "right_forward": 20,
+    "right_reverse": 21
+}
 
-    ## initialize sensors
-    sensors = []
-    sensors.append(Pin(12, Pin.IN))
-    sensors.append(Pin(13, Pin.IN))
-    sensors.append(Pin(14, Pin.IN))
-    sensors.append(Pin(15, Pin.IN))
-    sensors.append(Pin(16, Pin.IN))
-    sensors.append(Pin(17, Pin.IN))
-    sensors.append(Pin(18, Pin.IN))
-    sensors.append(Pin(19, Pin.IN))
+motor_enable_pins = [17, 16]
 
-    ## initialize motors
-    SPEED_SCALE = 5.4
-    DRIVING_SPEED = SPEED_SCALE
-    motor_left = Motor(pico_motor_shim.MOTOR_1, direction=NORMAL_DIR, speed_scale=SPEED_SCALE)
-    motor_right = Motor(pico_motor_shim.MOTOR_2, direction=REVERSED_DIR, speed_scale=SPEED_SCALE)
+# Sensor positions to pins mapping, with leftmost sensor at 1.0 and rightmost at 5.0
+positions_to_pins = {
+    1.0: 13,
+    2.0: 11,
+    3.0: 9,
+    4.0: 7,
+    5.0: 10
+}
 
-    # define data
+THRESHOLD = 0.5  # Threshold for line detection
+BASE_SPEED = 90
+K_s = 1.0  # Scaling factor for speed adjustment
+K_sd = 1.0
+STOPPED = False
+LEFT = True
 
-    sensor_number = 8
-    sensor_history_len = 4
-    sensor_history = array('i',[0]*sensor_number)
-    speed_l = 0
-    speed_r = 0
-    history_step = 0
+if __name__ == "__main__":
+    # Initialize motors and sensors
+    motors = Motors(motor_pins, motor_enable_pins)
+    motors.start()
+    sensors = Sensors(positions_to_pins)
 
-    # define helper functions
+    # Initialize PD controller
+    dt = 0.01 # Time step in seconds
+    Kp = -25.0  # Proportional gain
+    Kd = -0.5  # Derivative gain
+    pd_controller = PDController(Kp, Kd, dt, setpoint=3.0)
 
-    def read_sensors(history_index):
-        for i in range(sensor_number):
-            if sensors[i].value():
-                sensor_history[history_index] |= (1 << i)
+    try:
+        while True:
+            # Measure how much time this loop takes by first getting the time
+            start_time = time.ticks_ms()
+            sensor_voltages = sensors.read_sensors()
+            print(sensor_voltages)
+            # If all sensors are below the threshold, stop the motors
+            if all(voltage < THRESHOLD for voltage in sensor_voltages.values()):
+                if LEFT:
+                    motors.tight_turn(-80.0)
+                else:
+                    motors.tight_turn(80.0)
             else:
-                sensor_history[history_index] &= ~(1 << i)
-
-    def set_motors(left_speed, right_speed):
-        motor_left.speed(left_speed)
-        motor_right.speed(right_speed)
-
-    def stop():
-        motor_left.stop()
-        motor_right.stop()
-
-    def coast():
-        motor_left.coast()
-        motor_right.coast()
-
-    def calculate_speeds(history_index):
+                if STOPPED:
+                    STOPPED = False
+                    motors.start()
+                position_weighted_average = sensors.get_position_weighted_average(sensor_voltages)
+                if position_weighted_average < 3.0:
+                    LEFT = True
+                else:
+                    LEFT = False
+                control_output, error, derivative = pd_controller.update(position_weighted_average)
+                speed = BASE_SPEED / (1 + K_s * (abs(error) + K_sd * abs(derivative)))
+                motors.set_direction(speed, control_output)
+            end_time = time.ticks_ms()
+            elapsed_time_ms = time.ticks_diff(end_time, start_time)
+            elapsed_time_s = elapsed_time_ms / 1000.0
+            if elapsed_time_s < dt:
+                # Sleep for the remaining time to maintain the loop frequency
+                sleep_time = dt - elapsed_time_s
+                sleep(sleep_time)
+    except KeyboardInterrupt:
         pass
-
-    # main loop
-    
-    while True:
-        read_sensors(history_step)
-        speed_l, speed_r = calculate_speeds(history_step)
-        set_motors(speed_l, speed_r)        
-        history_step = (history_step + 1) % sensor_history_len
+    finally:
+        motors.stop()
