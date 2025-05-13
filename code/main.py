@@ -14,13 +14,16 @@ motor_pins = {
 motor_enable_pins = [17, 16]
 
 # Sensor positions to pins mapping, with leftmost sensor at 1.0 and rightmost at 5.0
-positions_to_pins = {
-    1.0: 13,
-    2.0: 11,
-    3.0: 9,
-    4.0: 7,
-    5.0: 10
+positions_to_mux_channel = {
+    1.0: 0,
+    2.0: 1,
+    3.0: 2,
+    4.0: 3,
+    5.0: 4
 }
+
+select_pins = (27, 12, 13)
+adc_pin = 28 
 
 THRESHOLD = 0.5  # Threshold for line detection
 BASE_SPEED = 90
@@ -33,7 +36,7 @@ if __name__ == "__main__":
     # Initialize motors and sensors
     motors = Motors(motor_pins, motor_enable_pins)
     motors.start()
-    sensors = Sensors(positions_to_pins)
+    sensors = Sensors(positions_to_mux_channel, select_pins, adc_pin)
 
     # Initialize PD controller
     dt = 0.01 # Time step in seconds
@@ -46,7 +49,11 @@ if __name__ == "__main__":
             # Measure how much time this loop takes by first getting the time
             start_time = time.ticks_ms()
             sensor_voltages = sensors.read_sensors()
-            print(sensor_voltages)
+            #print(sensor_voltages.values())
+            output = ''
+            for sensor in sensor_voltages.keys():
+                output += 's'+str(int(sensor)) + '=' + str(sensor_voltages[sensor]) + ' '
+            print(output)
             # If all sensors are below the threshold, stop the motors
             if all(voltage < THRESHOLD for voltage in sensor_voltages.values()):
                 if LEFT:

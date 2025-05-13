@@ -1,42 +1,47 @@
-from pimoroni_i2c import PimoroniI2C
-from breakout_ioexpander import BreakoutIOExpander
-
-PINS_BREAKOUT_GARDEN = {"sda": 12, "scl": 13}
+from machine import ADC, Pin
 
 class Sensors:
-    def __init__(self, positions_to_pins, i2c_pins=PINS_BREAKOUT_GARDEN, alpha=0.9):
+    def __init__(self, positions_to_mux_channel, select_pins, adc_pin, alpha=0.9):
         """
-        Initializes the sensors with the given positions and pins.
-        * positions_to_pins: A dictionary mapping sensor positions to their corresponding pins.
-        * i2c_pins: A dictionary containing the I2C SDA and SCL pins.
-        * alpha: The smoothing factor for the exponential moving average.
+        Initializes the sensors using an analog multiplexer.
+        * positions_to_mux_channel: Mapping of position float -> mux channel (0-7)
+        * select_pins: GPIO pins connected to S0, S1, S2 of the mux
+        * adc_pin: ADC pin connected to the multiplexer output (e.g., ADC0)
+        * alpha: smoothing factor for exponential moving average
         """
-        # Pin positions setup
-        self.positions_to_pins = positions_to_pins
-        self.ioe_adc_pins = self.positions_to_pins.values()
-
-        # Exponential moving average setup
-        self.prev_sensor_values = {position: 0.0 for position in self.positions_to_pins.keys()}
+        self.positions_to_mux_channel = positions_to_mux_channel
         self.alpha = alpha
+        self.prev_sensor_values = {pos: 0.0 for pos in positions_to_mux_channel}
 
-        # I2C setup
-        i2c = PimoroniI2C(**i2c_pins)
-        self.ioe = BreakoutIOExpander(i2c, address=0x18)
-        for ioe_adc_pin in self.ioe_adc_pins:
-            self.ioe.set_mode(ioe_adc_pin, BreakoutIOExpander.PIN_ADC)
+        # Setup select pins
+        self.select_lines = [Pin(pin, Pin.OUT) for pin in select_pins]
+
+        # Setup ADC
+        self.adc = ADC(Pin(adc_pin))
+        
+    def select_channel(self, channel):
+        """
+        Sets the multiplexer select lines to select the given channel (0-7)
+        """
+        for i, pin in enumerate(self.select_lines):
+            pin.value((channel >> i) & 1)    
 
     def read_sensors(self):
         """
-        Reads the sensor values and applies exponential smoothing.
-        Returns a dictionary of smoothed sensor values.
+        Reads all sensors via the multiplexer with exponential smoothing.
+        Returns a dictionary: position -> smoothed voltage.
         """
         sensor_voltages = {}
-        for position, pin in self.positions_to_pins.items():
-            raw_value = self.ioe.input_as_voltage(pin)
+
+        for position, channel in self.positions_to_mux_channel.items():
+            self.select_channel(channel)
+            raw_adc = self.adc.read_u16()  # 16-bit ADC read
+            voltage = (raw_adc / 65535.0) * 5  # Convert to voltage assuming 3.3V reference
+
             # Apply exponential smoothing
-            smoothed_value = self.alpha * raw_value + (1 - self.alpha) * self.prev_sensor_values[position]
-            sensor_voltages[position] = smoothed_value
-            self.prev_sensor_values[position] = smoothed_value
+            smoothed = self.alpha * voltage + (1 - self.alpha) * self.prev_sensor_values[position]
+            sensor_voltages[position] = smoothed
+            self.prev_sensor_values[position] = smoothed
 
         return sensor_voltages
     
@@ -47,11 +52,6 @@ class Sensors:
         using the sensor voltages as the weights of their positions.
         * sensor_voltages: A dictionary of sensor voltages.
         """
-        total_weight = 0.0
-        weighted_sum = 0.0
-
-        for position, voltage in sensor_voltages.items():
-            total_weight += voltage
-            weighted_sum += position * voltage
-
+        total_weight = sum(sensor_voltages.values())
+        weighted_sum = sum(pos * val for pos, val in sensor_voltages.items())
         return weighted_sum / total_weight if total_weight != 0 else 0

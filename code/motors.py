@@ -1,5 +1,7 @@
 from machine import Pin, PWM
 
+# motor wires connection: left then right; black, beige, black, beige
+
 class Motors:
     def __init__(self, motor_pins, enable_pins, pwm_freq=1000):
         """
