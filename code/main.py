@@ -25,7 +25,10 @@ positions_to_mux_channel = {
 select_pins = (27, 12, 13)
 adc_pin = 28 
 
-THRESHOLD = 1.  # Threshold for line detection
+THRESHOLD_MIN = .8 
+THRESHOLD_MAX = 3.4
+EPSILON = 0.05   # safety threshold for line not visible (to avoind comparing values with 0)
+
 BASE_SPEED = 90
 K_s = .5  # Scaling factor for speed adjustment
 K_sd = 1.0
@@ -36,7 +39,7 @@ if __name__ == "__main__":
     # Initialize motors and sensors
     motors = Motors(motor_pins, motor_enable_pins)
     motors.start()
-    sensors = Sensors(positions_to_mux_channel, select_pins, adc_pin)
+    sensors = Sensors(positions_to_mux_channel, select_pins, adc_pin, threshold_min=THRESHOLD_MIN, threshold_max=THRESHOLD_MAX, alpha=0.99)
 
     # Initialize PD controller
     dt = 0.01 # Time step in seconds
@@ -49,23 +52,23 @@ if __name__ == "__main__":
 #         # Measure how much time this loop takes by first getting the time
 #             start_time = time.ticks_ms()
 #             sensor_voltages = sensors.read_sensors()
+#             sensor_voltages2 = sensors.get_truncated_and_smoothed_voltages()
+# 
 #             output = ''
-#             for sensor in sensor_voltages.keys():
-#                 output += 's'+str(int(sensor)) + '=' + str(sensor_voltages[sensor]) + ' '
-#             #print(output)
-#             print(sensors.get_position_weighted_average(sensor_voltages))    
+# #            for sensor in sensor_voltages.keys():
+# #                output += 's'+str(int(sensor)) + '=' + str(sensor_voltages[sensor]) + ' '
+#             for sensor in range(1, 6):
+#                  output += 's'+str(int(sensor)) + '=' + str(sensor_voltages2[sensor-1]) + ' '
+#             print(output)
+            #print(sensors.get_current_line_position())    
     try:
         while True:
             # Measure how much time this loop takes by first getting the time
             start_time = time.ticks_ms()
             sensor_voltages = sensors.read_sensors()
-            #print(sensor_voltages.values())
-            output = ''
-            for sensor in sensor_voltages.keys():
-                output += 's'+str(int(sensor)) + '=' + str(sensor_voltages[sensor]) + ' '
-            print(output)
+
             # If all sensors are below the threshold, stop the motors
-            if all(voltage < THRESHOLD for voltage in sensor_voltages.values()):
+            if all(voltage < EPSILON for voltage in sensor_voltages):
 #             LEFT = True
 #             if True:
                 if LEFT:
@@ -76,7 +79,7 @@ if __name__ == "__main__":
                 if STOPPED:
                     STOPPED = False
                     motors.start()
-                position_weighted_average = sensors.get_position_weighted_average(sensor_voltages)
+                position_weighted_average = sensors.get_current_line_position()
                 if position_weighted_average < 3.0:
                     LEFT = True
                 else:
@@ -84,6 +87,7 @@ if __name__ == "__main__":
                 control_output, error, derivative = pd_controller.update(position_weighted_average)
                 speed = BASE_SPEED / (1 + K_s * (abs(error) + K_sd * abs(derivative)))
                 motors.set_direction(speed, control_output)
+            
             end_time = time.ticks_ms()
             elapsed_time_ms = time.ticks_diff(end_time, start_time)
             elapsed_time_s = elapsed_time_ms / 1000.0
