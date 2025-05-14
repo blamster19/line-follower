@@ -5,10 +5,10 @@ from motors import Motors
 from pid import PDController
 
 motor_pins = {
-    "left_forward": 18,
-    "left_reverse": 19,
-    "right_forward": 20,
-    "right_reverse": 21
+    "left_forward": 21,
+    "left_reverse": 20,
+    "right_forward": 18,
+    "right_reverse": 19
 }
 
 motor_enable_pins = [17, 16]
@@ -25,9 +25,9 @@ positions_to_mux_channel = {
 select_pins = (27, 12, 13)
 adc_pin = 28 
 
-THRESHOLD = 0.5  # Threshold for line detection
+THRESHOLD = 1.  # Threshold for line detection
 BASE_SPEED = 90
-K_s = 1.0  # Scaling factor for speed adjustment
+K_s = .5  # Scaling factor for speed adjustment
 K_sd = 1.0
 STOPPED = False
 LEFT = True
@@ -43,7 +43,17 @@ if __name__ == "__main__":
     Kp = -25.0  # Proportional gain
     Kd = -0.5  # Derivative gain
     pd_controller = PDController(Kp, Kd, dt, setpoint=3.0)
-
+    
+#     try:
+#         while True:
+#         # Measure how much time this loop takes by first getting the time
+#             start_time = time.ticks_ms()
+#             sensor_voltages = sensors.read_sensors()
+#             output = ''
+#             for sensor in sensor_voltages.keys():
+#                 output += 's'+str(int(sensor)) + '=' + str(sensor_voltages[sensor]) + ' '
+#             #print(output)
+#             print(sensors.get_position_weighted_average(sensor_voltages))    
     try:
         while True:
             # Measure how much time this loop takes by first getting the time
@@ -56,10 +66,12 @@ if __name__ == "__main__":
             print(output)
             # If all sensors are below the threshold, stop the motors
             if all(voltage < THRESHOLD for voltage in sensor_voltages.values()):
+#             LEFT = True
+#             if True:
                 if LEFT:
-                    motors.tight_turn(-80.0)
+                    motors.tight_turn(-70.0)
                 else:
-                    motors.tight_turn(80.0)
+                    motors.tight_turn(70.0)
             else:
                 if STOPPED:
                     STOPPED = False

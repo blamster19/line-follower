@@ -52,6 +52,26 @@ class Sensors:
         using the sensor voltages as the weights of their positions.
         * sensor_voltages: A dictionary of sensor voltages.
         """
-        total_weight = sum(sensor_voltages.values())
-        weighted_sum = sum(pos * val for pos, val in sensor_voltages.items())
+        total_weight = 0.0
+
+
+
+        weighted_sum = 0.0
+
+
+
+
+
+        for position, voltage in sensor_voltages.items():
+
+
+            total_weight += voltage
+
+
+            weighted_sum += position * voltage
+
+
+
+
+
         return weighted_sum / total_weight if total_weight != 0 else 0
