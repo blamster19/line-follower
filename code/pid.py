@@ -16,4 +16,4 @@ class PDController:
         error = self.setpoint - measured_value
         derivative = (error - self.prev_error) / self.dt
         self.prev_error = error
-        return self.Kp * error + self.Kd * derivative, error, derivative
+        return self.Kp * error**5 + self.Kd * derivative, error, derivative
