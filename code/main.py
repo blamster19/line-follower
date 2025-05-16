@@ -95,6 +95,7 @@ if __name__ == "__main__":
                 # Sleep for the remaining time to maintain the loop frequency
                 sleep_time = dt - elapsed_time_s
                 sleep(sleep_time)
+                
     except KeyboardInterrupt:
         pass
     finally:
