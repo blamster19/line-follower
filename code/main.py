@@ -27,7 +27,8 @@ adc_pin = 28
 
 THRESHOLD_MIN = .8 
 THRESHOLD_MAX = 3.4
-EPSILON = 0.8   # safety threshold for line not visible (to avoind comparing values with 0)
+EPSILON = 0.05   # safety threshold for line not visible (to avoind comparing values with 0)
+EPSILON_UPPER = 4.9
 
 BASE_SPEED = 90
 K_s = 0.2  # Scaling factor for speed adjustment
@@ -42,7 +43,7 @@ if __name__ == "__main__":
     sensors = Sensors(positions_to_mux_channel, select_pins, adc_pin, threshold_min=THRESHOLD_MIN, memory_length=5, threshold_max=THRESHOLD_MAX, alpha=0.99)
 
     # Initialize PD controller
-    dt = 0.01 # Time step in seconds
+    dt = 0.005 # Time step in seconds
     Kp = -15.0  # Proportional gain
     Kd = -1  # Derivative gain
     pd_controller = PDController(Kp, Kd, dt, setpoint=3.0)
@@ -66,13 +67,14 @@ if __name__ == "__main__":
             # Measure how much time this loop takes by first getting the time
             start_time = time.ticks_ms()
             sensor_voltages = sensors.read_sensors()
+            sensor_voltages_smoothed_list = sensors.smoothed_prev_sensor_values 
 #             output = ''
 #             for sensor in sensor_voltages.keys():
 #                output += 's'+str(int(sensor)) + '=' + str(sensor_voltages[sensor]) + ' '
 #             print(output)
 
             # If all sensors are below the threshold, stop the motors
-            if all(voltage < EPSILON for voltage in sensor_voltages.values()) or all(voltage > THRESHOLD_MAX for voltage in sensor_voltages.values()):
+            if all(voltage < EPSILON for voltage in sensor_voltages_smoothed_list) or all(voltage > EPSILON_UPPER for voltage in sensor_voltages_smoothed_list):
 #             LEFT = True
 #             if True:
                 if LEFT:
