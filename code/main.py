@@ -4,6 +4,10 @@ from sensors import Sensors
 from motors import Motors
 from pid import PDController
 
+DEBUG = False
+MODE = 'line pos'
+#MODE = 'sensor voltages'
+
 motor_pins = {
     "left_forward": 21,
     "left_reverse": 20,
@@ -15,11 +19,11 @@ motor_enable_pins = [17, 16]
 
 # Sensor positions to pins mapping, with leftmost sensor at 1.0 and rightmost at 5.0
 positions_to_mux_channel = {
-    1.0: 0,
-    2.0: 1,
-    3.0: 2,
-    4.0: 3,
-    5.0: 4
+    1.0: 1,
+    2.0: 2,
+    3.0: 3,
+    4.0: 4,
+    5.0: 0
 }
 
 select_pins = (27, 12, 13)
@@ -30,11 +34,35 @@ THRESHOLD_MAX = 3.4
 EPSILON = 0.05   # safety threshold for line not visible (to avoind comparing values with 0)
 EPSILON_UPPER = 4.9
 
-BASE_SPEED = 90
-K_s = 0.2  # Scaling factor for speed adjustment
-K_sd = 1.0
+BASE_SPEED = 90  ### should rename to: max crusing speed
+K_s = 0.3  # Scaling factor for speed adjustment
+K_sd = 0.15
+PROPORTION = 4.0 #proportion left vs right for tight turns
+
+
 STOPPED = False
 LEFT = True
+
+
+def debug(mode):
+    start_time = time.ticks_ms()           
+    sensors.read_sensors()
+    if mode=='line pos':
+        print(sensors.get_current_line_position())    
+        
+    if mode=='sensor voltages':
+        sensor_voltages2 = sensors.get_truncated_and_smoothed_voltages()
+        output = ''
+        for sensor in range(1, 6):
+            output += 's'+str(int(sensor)) + '=' + str(sensor_voltages2[sensor-1]) + ' '
+        print(output)
+    end_time = time.ticks_ms()
+    elapsed_time_ms = time.ticks_diff(end_time, start_time)
+    elapsed_time_s = elapsed_time_ms / 1000.0
+    if elapsed_time_s < dt:
+        # Sleep for the remaining time to maintain the loop frequency
+        sleep_time = dt - elapsed_time_s
+        sleep(sleep_time)
 
 if __name__ == "__main__":
     # Initialize motors and sensors
@@ -43,44 +71,30 @@ if __name__ == "__main__":
     sensors = Sensors(positions_to_mux_channel, select_pins, adc_pin, threshold_min=THRESHOLD_MIN, memory_length=5, threshold_max=THRESHOLD_MAX, alpha=0.99)
 
     # Initialize PD controller
-    dt = 0.005 # Time step in seconds
+    dt = 0.001 # Time step in seconds
     Kp = -15.0  # Proportional gain
-    Kd = -1  # Derivative gain
+    Kd = -0.1  # Derivative gain
     pd_controller = PDController(Kp, Kd, dt, setpoint=3.0)
     
-#     try:
-#         while True:
-#         # Measure how much time this loop takes by first getting the time
-#             start_time = time.ticks_ms()
-#             sensor_voltages = sensors.read_sensors()
-#             sensor_voltages2 = sensors.get_truncated_and_smoothed_voltages()
-# 
-#             output = ''
-# #            for sensor in sensor_voltages.keys():
-# #                output += 's'+str(int(sensor)) + '=' + str(sensor_voltages[sensor]) + ' '
-#             for sensor in range(1, 6):
-#                  output += 's'+str(int(sensor)) + '=' + str(sensor_voltages2[sensor-1]) + ' '
-#             print(output)
-            #print(sensors.get_current_line_position())    
     try:
+        if DEBUG:
+            while True:
+                debug(MODE)
+        
         while True:
             # Measure how much time this loop takes by first getting the time
             start_time = time.ticks_ms()
             sensor_voltages = sensors.read_sensors()
             sensor_voltages_smoothed_list = sensors.smoothed_prev_sensor_values 
-#             output = ''
-#             for sensor in sensor_voltages.keys():
-#                output += 's'+str(int(sensor)) + '=' + str(sensor_voltages[sensor]) + ' '
-#             print(output)
-
+            
             # If all sensors are below the threshold, stop the motors
-            if all(voltage < EPSILON for voltage in sensor_voltages_smoothed_list) or all(voltage > EPSILON_UPPER for voltage in sensor_voltages_smoothed_list):
+            if all(voltage < EPSILON for voltage in sensor_voltages_smoothed_list):
 #             LEFT = True
 #             if True:
                 if LEFT:
-                    motors.tight_turn(-80.0)
+                    motors.tight_turn(-80.0, PROPORTION)
                 else:
-                    motors.tight_turn(80.0)
+                    motors.tight_turn(80.0, PROPORTION)
             else:
                 if STOPPED:
                     STOPPED = False
@@ -91,7 +105,7 @@ if __name__ == "__main__":
                 else:
                     LEFT = False
                 control_output, error, derivative = pd_controller.update(position_weighted_average)
-                speed = BASE_SPEED / (1 + K_s * (abs(error) + K_sd * abs(derivative)))
+                speed = BASE_SPEED / (1 + K_s * abs(error) + K_sd * abs(derivative))  #zmniejszyć stałe 
                 motors.set_direction(speed, control_output)
             
             end_time = time.ticks_ms()

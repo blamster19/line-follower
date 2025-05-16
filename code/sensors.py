@@ -20,7 +20,7 @@ class Sensors:
     """
 
 
-    def __init__(self, positions_to_mux_channel, select_pins, adc_pin, alpha=0.9, memory_length=5, threshold_min = 0.5, threshold_max=4.5):
+    def __init__(self, positions_to_mux_channel, select_pins, adc_pin, alpha=0.9, memory_length=5, threshold_min = 0.8, threshold_max=3.4):
         """
         Initializes the sensors using an analog multiplexer.
         * positions_to_mux_channel: Mapping of position float -> mux channel (0-7)
@@ -43,9 +43,9 @@ class Sensors:
 
         self.adc = ADC(Pin(adc_pin))
 
-        self.prev_voltages = [[0 for s in range(len(positions_to_mux_channel))] for i in range(memory_length)]
+        self.prev_voltages = [[1., 5., 5., 5., 0.] for i in range(memory_length)]
 
-        self.smoothed_prev_sensor_values = self.get_truncated_and_smoothed_voltages(self.prev_voltages)
+        self.smoothed_prev_sensor_values = self.get_truncated_and_smoothed_voltages()
 
         
     def select_channel(self, channel):
@@ -78,6 +78,7 @@ class Sensors:
 
         # calculate and update the average of past readings
         smoothed_voltages = self.get_truncated_and_smoothed_voltages()
+        self.smoothed_prev_sensor_values = smoothed_voltages
 
         return smoothed_voltages
        
@@ -137,8 +138,4 @@ class Sensors:
         weighted by their smoothed n=self.memory_length last readings.
         Updates the value of self.smoothed_prev_sensor_values.
         """
-        smoothed = self.get_truncated_and_smoothed_voltages()
-
-        self.smoothed_prev_sensor_values = smoothed
-
-        return self.get_position_weighted_average(smoothed, voltages_in_list=True)
+        return self.get_position_weighted_average(self.smoothed_prev_sensor_values, voltages_in_list=True)

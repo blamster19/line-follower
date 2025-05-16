@@ -36,14 +36,14 @@ class Motors:
             self.motors["left_forward"].duty_u16(0)
             self.motors["left_reverse"].duty_u16(int(-left_motor_speed * 655.35))
             
-    def tight_turn(self, direction):
+    def tight_turn(self, direction, proportion):
         
         if direction >= 0.0:
-            left_motor_speed = (direction / 4.0)
+            left_motor_speed = (direction / proportion)
             right_motor_speed = -direction
         else:
             left_motor_speed = direction
-            right_motor_speed = -direction / 4.0
+            right_motor_speed = -direction / proportion
             
         if (right_motor_speed > 0):
             self.motors["right_forward"].duty_u16(int(right_motor_speed * 655.35))
