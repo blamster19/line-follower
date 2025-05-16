@@ -72,7 +72,7 @@ if __name__ == "__main__":
 #             print(output)
 
             # If all sensors are below the threshold, stop the motors
-            if all(voltage < EPSILON for voltage in sensor_voltages.values()) or all(voltage > THRESHOLD_MAX for voltage in sensor_voltages.values()):
+            if all(voltage < EPSILON for voltage in sensor_voltages) or all(voltage > THRESHOLD_MAX for voltage in sensor_voltages):
 #             LEFT = True
 #             if True:
                 if LEFT:

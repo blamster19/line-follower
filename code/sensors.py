@@ -45,7 +45,7 @@ class Sensors:
 
         self.prev_voltages = [[0 for s in range(len(positions_to_mux_channel))] for i in range(memory_length)]
 
-        self.smoothed_prev_sensor_values = self.get_truncated_and_smoothed_voltages(self.prev_voltages)
+        self.smoothed_prev_sensor_values = self.get_truncated_and_smoothed_voltages()
 
         
     def select_channel(self, channel):
