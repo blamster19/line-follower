@@ -3,10 +3,13 @@ import time
 from sensors import Sensors
 from motors import Motors
 from pid import PDController
+from machine import Pin
 
-DEBUG = False
-MODE = 'line pos'
-#MODE = 'sensor voltages'
+
+DEBUG = 0
+#MODE = 'line pos'
+MODE = 'sensor voltages'
+MODE='remote'
 
 motor_pins = {
     "left_forward": 21,
@@ -28,11 +31,12 @@ positions_to_mux_channel = {
 
 select_pins = (27, 12, 13)
 adc_pin = 28 
+rc_pin = 26
 
 THRESHOLD_MIN = .8 
 THRESHOLD_MAX = 3.4
 EPSILON = 0.05   # safety threshold for line not visible (to avoind comparing values with 0)
-EPSILON_UPPER = 4.9
+EPSILON_UPPER = 4.
 
 BASE_SPEED = 90  ### should rename to: max crusing speed
 K_s = 0.3  # Scaling factor for speed adjustment
@@ -43,6 +47,7 @@ PROPORTION = 4.0 #proportion left vs right for tight turns
 STOPPED = False
 LEFT = True
 
+tight=True
 
 def debug(mode):
     start_time = time.ticks_ms()           
@@ -63,15 +68,20 @@ def debug(mode):
         # Sleep for the remaining time to maintain the loop frequency
         sleep_time = dt - elapsed_time_s
         sleep(sleep_time)
+    if mode=='remote':
+        rc_PIN = Pin(rc_pin, Pin.IN)
+        print(rc_PIN.value())
+        
 
 if __name__ == "__main__":
+    rc_PIN = Pin(rc_pin, Pin.IN)
     # Initialize motors and sensors
     motors = Motors(motor_pins, motor_enable_pins)
     motors.start()
     sensors = Sensors(positions_to_mux_channel, select_pins, adc_pin, threshold_min=THRESHOLD_MIN, memory_length=5, threshold_max=THRESHOLD_MAX, alpha=0.99)
 
     # Initialize PD controller
-    dt = 0.001 # Time step in seconds
+    dt = 0.01 # Time step in seconds
     Kp = -15.0  # Proportional gain
     Kd = -0.1  # Derivative gain
     pd_controller = PDController(Kp, Kd, dt, setpoint=3.0)
@@ -80,31 +90,54 @@ if __name__ == "__main__":
         if DEBUG:
             while True:
                 debug(MODE)
+        while True:
+            if not rc_PIN.value():
+                sleep(0.3)
+                break
         
         while True:
+            if not rc_PIN.value():
+                sleep(0.3)
+                break
             # Measure how much time this loop takes by first getting the time
             start_time = time.ticks_ms()
             sensor_voltages = sensors.read_sensors()
-            sensor_voltages_smoothed_list = sensors.smoothed_prev_sensor_values 
+            sensor_voltages_smoothed_list = sensors.smoothed_prev_sensor_values
+            position_weighted_average = sensors.get_current_line_position()
+
+            control_output, error, derivative = pd_controller.update(position_weighted_average)
             
+            if all(voltage > EPSILON_UPPER for voltage in sensor_voltages_smoothed_list[:-1]) or all(voltage > EPSILON_UPPER for voltage in sensor_voltages_smoothed_list[1:]):
+                break
+
             # If all sensors are below the threshold, stop the motors
-            if all(voltage < EPSILON for voltage in sensor_voltages_smoothed_list):
+            if all(voltage < EPSILON for voltage in sensor_voltages_smoothed_list) or all(voltage > EPSILON_UPPER for voltage in sensor_voltages_smoothed_list[:-1]) or all(voltage > EPSILON_UPPER for voltage in sensor_voltages_smoothed_list[1:]):
 #             LEFT = True
 #             if True:
+#                 motors.stop()
+#                 motors.start()
                 if LEFT:
-                    motors.tight_turn(-80.0, PROPORTION)
+                    if abs(error)<=1.:
+                        motors.stop()
+                        motors.start()
+                    else:
+                        motors.tight_turn(-80.0, PROPORTION)
+    
                 else:
-                    motors.tight_turn(80.0, PROPORTION)
+                    if abs(error)<=1.:
+                        motors.stop()
+                        motors.start()
+                    else:
+                        motors.tight_turn(80.0, PROPORTION)
+#                 break
             else:
                 if STOPPED:
                     STOPPED = False
                     motors.start()
-                position_weighted_average = sensors.get_current_line_position()
                 if position_weighted_average < 3.0:
                     LEFT = True
                 else:
                     LEFT = False
-                control_output, error, derivative = pd_controller.update(position_weighted_average)
                 speed = BASE_SPEED / (1 + K_s * abs(error) + K_sd * abs(derivative))  #zmniejszyć stałe 
                 motors.set_direction(speed, control_output)
             
