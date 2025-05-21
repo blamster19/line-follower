@@ -128,7 +128,17 @@ class Sensors:
         for voltages in after_threshold[1:]:
             for i in range(len(smoothed)):
                 smoothed[i] = self.alpha*smoothed[i] + (1-self.alpha)*voltages[i]
-         
+                
+        if not (all(voltage > 3.4 for voltage in smoothed)):
+            if smoothed[0] > 3.4 and smoothed[1] > 3.4:
+                smoothed[2] = 0.0
+                smoothed[3] = 0.0
+                smoothed[4] = 0.0
+            if smoothed[3] > 3.4 and smoothed[4] > 3.4:
+                smoothed[2] = 0.0
+                smoothed[0] = 0.0
+                smoothed[1] = 0.0
+            
         return smoothed
 
 
