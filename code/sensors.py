@@ -1,4 +1,5 @@
 from machine import ADC, Pin
+from collections import deque
 
 class Sensors:
     """
@@ -47,7 +48,11 @@ class Sensors:
 
         self.smoothed_prev_sensor_values = self.get_truncated_and_smoothed_voltages()
 
-        
+        # helper variaables
+        self.current_voltages = deque([0.0]*5)
+        self.after_threshold = self.prev_voltages.copy()
+
+
     def select_channel(self, channel):
         """
         Sets the multiplexer select lines to select the given channel (0-7)
@@ -62,19 +67,19 @@ class Sensors:
         """
 
         # read voltages
-        current_voltages = []
 
+        i = 0
         for position, channel in self.positions_to_mux_channel.items():
             self.select_channel(channel)
             raw_adc = self.adc.read_u16()  # 16-bit ADC read
             voltage = (raw_adc / 65535.0) * 5  # Convert to voltage assuming 5V reference
-            current_voltages.append(voltage)
+            self.current_voltages[i] = voltage
+            i += 1
 
         # update memory
         # ordering in memory list: frow newest to oldest
-        updated_prev_voltages = self.prev_voltages[:-1]
-        updated_prev_voltages.insert(0, current_voltages)
-        self.prev_voltages = updated_prev_voltages
+        self.prev_voltages.rotate(-1)
+        self.prev_voltages[0] = self.current_voltages.copy()
 
         # calculate and update the average of past readings
         smoothed_voltages = self.get_truncated_and_smoothed_voltages()
@@ -82,7 +87,7 @@ class Sensors:
 
         return smoothed_voltages
        
-    def get_position_weighted_average(self, sensor_voltages, voltages_in_list=False):
+    def get_position_weighted_average(self, sensor_voltages):
         """
         Calculates the voltage weighted average of the sensor positions.
         Since the line is seen for high voltages, the average is calculated
@@ -92,15 +97,12 @@ class Sensors:
         """
         total_weight = 0.0
         weighted_sum = 0.0
-                
-        if voltages_in_list:
-            sensor_voltages = {float(pos+1) : sensor_voltages[pos] for pos in range(len(sensor_voltages))}
 
-        for position, voltage in sensor_voltages.items():
+        for position, voltage in enumerate(sensor_voltages):
 
             total_weight += voltage
 
-            weighted_sum += position * voltage
+            weighted_sum += (position + 1) * voltage
 
         return weighted_sum / total_weight if total_weight != 0 else 0
     
@@ -121,11 +123,13 @@ class Sensors:
         smoothed voltage value for each sensor. Before smoothing, clips
         voltage values between self.threshold_min and self.threshold_max.
         """
-        after_threshold = [[self.truncate(val) for val in line] for line in self.prev_voltages]
-        
-        smoothed = after_threshold[0]
+        for i in range(len(self.prev_voltages)):
+            for j in range(len(self.prev_voltages[i])):
+                self.after_threshold[i][j] = self.truncate(self.prev_voltages[i][j])
 
-        for voltages in after_threshold[1:]:
+        smoothed = self.after_threshold[0]
+
+        for voltages in self.after_threshold[1:]:
             for i in range(len(smoothed)):
                 smoothed[i] = self.alpha*smoothed[i] + (1-self.alpha)*voltages[i]
                 
@@ -148,4 +152,4 @@ class Sensors:
         weighted by their smoothed n=self.memory_length last readings.
         Updates the value of self.smoothed_prev_sensor_values.
         """
-        return self.get_position_weighted_average(self.smoothed_prev_sensor_values, voltages_in_list=True)
+        return self.get_position_weighted_average(self.smoothed_prev_sensor_values)
