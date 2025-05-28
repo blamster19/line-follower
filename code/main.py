@@ -29,11 +29,11 @@ rc_pin = 26
 # Mapping of sensor position to multiplexer channel
 # leftmost sensor is at 1.0 and rightmost is at 5.0
 positions_to_mux_channel = {
-    1.0: 1,
-    2.0: 2,
-    3.0: 3,
-    4.0: 4,
-    5.0: 0
+    1.0: 0,
+    2.0: 1,
+    3.0: 2,
+    4.0: 3,
+    5.0: 4
 }
 
 # Sensor constants
@@ -43,23 +43,27 @@ EPSILON = 0.5           # Lower sensor inputs are considered to not be on the li
 EPSILON_UPPER = 4.      # Higher sensor inputs are considered to be on the line
 N_smoothing_memory = 2  # Length of memory buffer for sensor smoothing
 smoothing_alpha = 0.99  # Alpha parameter for sensor smoothing
-border_mode = 'last'
+# border_mode = 'last'
 border_mode = 'average'
-N_direction_memory = 80
+N_direction_memory = 20
 
 # Motor speed constants
-K_se = 0.8              # Speed scaling for error values
-K_sd = 0.8              # Speed scaling for derivative values
-TIGHT_TURN_SPEED = 70.0 # The speed for tight turns
-BASE_SPEED = 90         # The speed at which the robot moves when the line is perfectly aligned
-PROPORTION = 2.0        # Proportion of wheel speeds for tight turns
+K_se = 0.3              # Speed scaling for error values
+K_sd = 0.3             # Speed scaling for derivative values
+TIGHT_TURN_SPEED = 100.0 # The speed for tight turns
+BASE_SPEED = 100.0         # The speed at which the robot moves when the line is perfectly aligned
+PROPORTION = 1.5        # Proportion of wheel speeds for tight turns
 
 # PID constants
 middle_of_line = 3.0    # Point we consider to be the desired position
 dt = 0.01               # Time step in seconds
-Kp = -8.0               # Proportional gain
-Kd = -.01               # Derivative gain
-Ki = -0.25              # Integral gain
+Kp = -30.0               # Proportional gain
+Kd = -0.75               # Derivative gain
+Ki = -0.0              # Integral gain
+
+battery_constant = 0.6
+# 8.86 - 0.47
+# 7.54 - 1.0
 
 
 # Shared pulse signal and result
@@ -78,17 +82,16 @@ def pulse_reader(rc_PIN, lock, shared):
         sleep(0.01)
 
 
-def debug(mode, new_is_on):
+def debug(mode, new_is_on, sensors):
     start_time = time.ticks_ms()           
     sensors.read_sensors()
     if mode=='line pos':
         print(sensors.get_current_line_position())    
         
     if mode=='sensor voltages':
-        sensor_voltages2 = sensors.get_truncated_and_smoothed_voltages()
         output = ''
-        for sensor in range(1, 6):
-            output += 's'+str(int(sensor)) + '=' + str(sensor_voltages2[sensor-1]) + ' '
+        for sensor in range(5):
+            output += 's'+str(int(sensor)) + '=' + str(sensors.voltages[sensor]) + ' '
         print(output)
     end_time = time.ticks_ms()
     elapsed_time_ms = time.ticks_diff(end_time, start_time)
@@ -121,7 +124,7 @@ if __name__ == "__main__":
     sensors = Sensors(positions_to_mux_channel, select_pins, adc_pin, threshold_min=THRESHOLD_MIN, memory_length=N_smoothing_memory, threshold_max=THRESHOLD_MAX, alpha=smoothing_alpha)
 
     # Initialize turn detection variables
-    direction_buffer = CyclicBuffer(N_direction_memory)
+    direction_buffer = CyclicBuffer(5)
     left_sensor_readings = CyclicBuffer(N_direction_memory)
     right_sensor_readings = CyclicBuffer(N_direction_memory)
     steps_line_right = 0       # Number of time steps since line was read by leftmost sensor
@@ -139,7 +142,7 @@ if __name__ == "__main__":
     try:
         if DEBUG:
             while True:
-                is_on = debug(MODE, is_on)
+                is_on = debug(MODE, is_on, sensors)
 
         while True:
             with lock:
@@ -170,15 +173,14 @@ if __name__ == "__main__":
             start_time = time.ticks_ms()
 
             sensor_voltages = sensors.read_sensors()
-            sensor_voltages_smoothed_list = sensors.smoothed_prev_sensor_values
             position_weighted_average = sensors.get_current_line_position()
 
             control_output, error, derivative = pid_controller.update(position_weighted_average)
             speed = BASE_SPEED / (1 + K_se * abs(error) + K_sd * abs(derivative))
             
             # If all sensors do not see the line or all see the line, make a tight turn to get back on the line
-            all_off_line = all(voltage < EPSILON for voltage in sensor_voltages_smoothed_list)
-            all_on_line  = all(voltage > EPSILON_UPPER for voltage in sensor_voltages_smoothed_list)
+            all_off_line = all(voltage < EPSILON for voltage in sensors.voltages)
+            all_on_line  = all(voltage > EPSILON_UPPER for voltage in sensors.voltages)
             if all_off_line or all_on_line:
                 # A neutral update to the PID controller and error buffer
                 pid_controller.update(middle_of_line)
@@ -188,9 +190,9 @@ if __name__ == "__main__":
                 motors.stop()
                 motors.start()
                 if left:
-                    motors.tight_turn(-TIGHT_TURN_SPEED, PROPORTION)
+                    motors.tight_turn(-battery_constant * TIGHT_TURN_SPEED, PROPORTION)
                 else:
-                    motors.tight_turn(TIGHT_TURN_SPEED, PROPORTION)    
+                    motors.tight_turn(battery_constant * TIGHT_TURN_SPEED, PROPORTION)    
             else:
 
                 # Stop the motors and try to stop spinning after ending the sharp turn
@@ -203,12 +205,12 @@ if __name__ == "__main__":
 
                 if border_mode == 'last':
 
-                    if sensor_voltages_smoothed_list[0] > EPSILON_UPPER:
+                    if sensors.voltages[0] > EPSILON_UPPER:
                         steps_line_left = 0
                     else:
                         steps_line_left += 1
 
-                    if sensor_voltages_smoothed_list[4] > EPSILON_UPPER:
+                    if sensors.voltages[4] > EPSILON_UPPER:
                         steps_line_right = 0
                     else:
                         steps_line_right += 1
@@ -220,15 +222,15 @@ if __name__ == "__main__":
 
                 if border_mode == 'average':
 
-                    left_sensor_readings.append(sensor_voltages_smoothed_list[0])
-                    right_sensor_readings.append(sensor_voltages_smoothed_list[4])
+                    left_sensor_readings.append(max(sensors.voltages[0] - 1.0, 0.0))
+                    right_sensor_readings.append(max(sensors.voltages[4] - 1.0, 0.0))
 
                     if left_sensor_readings.average() > right_sensor_readings.average():
                         left = True
                     else:
                         left = False
                 
-                motors.set_direction(speed, control_output)
+                motors.set_direction(battery_constant * speed, battery_constant * control_output)
                 direction_buffer.append(error)
             
             end_time = time.ticks_ms()
