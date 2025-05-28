@@ -43,7 +43,7 @@ class Sensors:
 
         self.adc = ADC(Pin(adc_pin))
 
-        self.voltages = [0.0] * 5
+        self.voltages = [0.0] * len(positions_to_mux_channel.keys())  # Initialize voltages for each sensor position
         
     def select_channel(self, channel):
         """
@@ -112,16 +112,6 @@ class Sensors:
         
         for i in range(len(self.voltages)):
             self.voltages[i] = self.truncate(self.voltages[i])
-                
-        if not (all(voltage > 3.4 for voltage in self.voltages)):
-            if self.voltages[0] > 3.4 and self.voltages[1] > 3.4:
-                self.voltages[2] = 0.0
-                self.voltages[3] = 0.0
-                self.voltages[4] = 0.0
-            if self.voltages[3] > 3.4 and self.voltages[4] > 3.4:
-                self.voltages[2] = 0.0
-                self.voltages[0] = 0.0
-                self.voltages[1] = 0.0
 
 
     def get_current_line_position(self):

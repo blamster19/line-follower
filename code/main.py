@@ -27,13 +27,15 @@ adc_pin = 28
 rc_pin = 26
 
 # Mapping of sensor position to multiplexer channel
-# leftmost sensor is at 1.0 and rightmost is at 5.0
+# leftmost sensor is at 1.0 and rightmost is at 7.0
 positions_to_mux_channel = {
-    1.0: 0,
-    2.0: 1,
-    3.0: 2,
-    4.0: 3,
-    5.0: 4
+    1.0: 5,
+    2.0: 0,
+    3.0: 1,
+    4.0: 2,
+    5.0: 3,
+    6.0: 4,
+    7.0: 6,
 }
 
 # Sensor constants
@@ -55,7 +57,7 @@ BASE_SPEED = 100.0         # The speed at which the robot moves when the line is
 PROPORTION = 1.5        # Proportion of wheel speeds for tight turns
 
 # PID constants
-middle_of_line = 3.0    # Point we consider to be the desired position
+middle_of_line = 4.0    # Point we consider to be the desired position
 dt = 0.01               # Time step in seconds
 Kp = -30.0               # Proportional gain
 Kd = -0.75               # Derivative gain
@@ -210,7 +212,7 @@ if __name__ == "__main__":
                     else:
                         steps_line_left += 1
 
-                    if sensors.voltages[4] > EPSILON_UPPER:
+                    if sensors.voltages[6] > EPSILON_UPPER:
                         steps_line_right = 0
                     else:
                         steps_line_right += 1
@@ -223,7 +225,7 @@ if __name__ == "__main__":
                 if border_mode == 'average':
 
                     left_sensor_readings.append(max(sensors.voltages[0] - 1.0, 0.0))
-                    right_sensor_readings.append(max(sensors.voltages[4] - 1.0, 0.0))
+                    right_sensor_readings.append(max(sensors.voltages[6] - 1.0, 0.0))
 
                     if left_sensor_readings.average() > right_sensor_readings.average():
                         left = True
