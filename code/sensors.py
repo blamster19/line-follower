@@ -43,7 +43,7 @@ class Sensors:
 
         self.adc = ADC(Pin(adc_pin))
 
-        self.voltages = [0.0] * len(positions_to_mux_channel.keys())  # Initialize voltages for each sensor position
+        self.voltages = [0.0] * 7  # Initialize voltages for each sensor position
         
     def select_channel(self, channel):
         """

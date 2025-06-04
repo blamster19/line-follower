@@ -8,8 +8,8 @@ import _thread
 from machine import Pin, time_pulse_us
 
 DEBUG = False
-MODE = 'line pos'
-# MODE = 'sensor voltages'
+# MODE = 'line pos'
+MODE = 'sensor voltages'
 # MODE='remote'
 
 # Pins for the motors, multiplexer and remote control
@@ -38,8 +38,10 @@ positions_to_mux_channel = {
     7.0: 6,
 }
 
+positions_to_mux_channel = [5, 0, 1, 2, 3, 4, 6]
+
 # Sensor constants
-THRESHOLD_MIN = .8      # Minimun voltage for sensor input thresholding
+THRESHOLD_MIN = .9      # Minimun voltage for sensor input thresholding
 THRESHOLD_MAX = 3.4     # Maximum voltage for sensor input thresholding
 EPSILON = 0.5           # Lower sensor inputs are considered to not be on the line
 EPSILON_UPPER = 4.      # Higher sensor inputs are considered to be on the line
@@ -50,8 +52,8 @@ border_mode = 'average'
 N_direction_memory = 20
 
 # Motor speed constants
-K_se = 0.3              # Speed scaling for error values
-K_sd = 0.3             # Speed scaling for derivative values
+K_se = 0.15              # Speed scaling for error values
+K_sd = 0.15             # Speed scaling for derivative values
 TIGHT_TURN_SPEED = 100.0 # The speed for tight turns
 BASE_SPEED = 100.0         # The speed at which the robot moves when the line is perfectly aligned
 PROPORTION = 1.5        # Proportion of wheel speeds for tight turns
@@ -59,11 +61,12 @@ PROPORTION = 1.5        # Proportion of wheel speeds for tight turns
 # PID constants
 middle_of_line = 4.0    # Point we consider to be the desired position
 dt = 0.01               # Time step in seconds
-Kp = -30.0               # Proportional gain
-Kd = -0.75               # Derivative gain
+Kp = -25.0               # Proportional gain
+Kd = -0.4               # Derivative gain
 Ki = -0.0              # Integral gain
 
-battery_constant = 0.6
+battery_constant = 0.7
+battery_constant = 0.7
 # 8.86 - 0.47
 # 7.54 - 1.0
 
@@ -87,12 +90,13 @@ def pulse_reader(rc_PIN, lock, shared):
 def debug(mode, new_is_on, sensors):
     start_time = time.ticks_ms()           
     sensors.read_sensors()
+    print(sensors.voltages)
     if mode=='line pos':
         print(sensors.get_current_line_position())    
         
     if mode=='sensor voltages':
         output = ''
-        for sensor in range(5):
+        for sensor in range(7):
             output += 's'+str(int(sensor)) + '=' + str(sensors.voltages[sensor]) + ' '
         print(output)
     end_time = time.ticks_ms()
@@ -224,8 +228,10 @@ if __name__ == "__main__":
 
                 if border_mode == 'average':
 
-                    left_sensor_readings.append(max(sensors.voltages[0] - 1.0, 0.0))
-                    right_sensor_readings.append(max(sensors.voltages[6] - 1.0, 0.0))
+                    left_sensor_readings.append(max(sensors.voltages[0], 0.0))
+                    right_sensor_readings.append(max(sensors.voltages[6], 0.0))
+                    
+                    print('l=' + str(left_sensor_readings.average() + 1.0) + ' r=' + str(right_sensor_readings.average() + 1.0)) 
 
                     if left_sensor_readings.average() > right_sensor_readings.average():
                         left = True
