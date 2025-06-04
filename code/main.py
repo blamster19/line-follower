@@ -41,20 +41,20 @@ positions_to_mux_channel = {
 positions_to_mux_channel = [5, 0, 1, 2, 3, 4, 6]
 
 # Sensor constants
-THRESHOLD_MIN = .9      # Minimun voltage for sensor input thresholding
-THRESHOLD_MAX = 3.4     # Maximum voltage for sensor input thresholding
+THRESHOLD_MIN = 3.4      # Minimun voltage for sensor input thresholding
+THRESHOLD_MAX = 5.0     # Maximum voltage for sensor input thresholding
 EPSILON = 0.5           # Lower sensor inputs are considered to not be on the line
 EPSILON_UPPER = 4.      # Higher sensor inputs are considered to be on the line
 N_smoothing_memory = 2  # Length of memory buffer for sensor smoothing
 smoothing_alpha = 0.99  # Alpha parameter for sensor smoothing
 # border_mode = 'last'
 border_mode = 'average'
-N_direction_memory = 20
+N_direction_memory = 10
 
 # Motor speed constants
 K_se = 0.15              # Speed scaling for error values
 K_sd = 0.15             # Speed scaling for derivative values
-TIGHT_TURN_SPEED = 100.0 # The speed for tight turns
+TIGHT_TURN_SPEED = 125.0 # The speed for tight turns
 BASE_SPEED = 100.0         # The speed at which the robot moves when the line is perfectly aligned
 PROPORTION = 1.5        # Proportion of wheel speeds for tight turns
 
@@ -65,8 +65,7 @@ Kp = -25.0               # Proportional gain
 Kd = -0.4               # Derivative gain
 Ki = -0.0              # Integral gain
 
-battery_constant = 0.7
-battery_constant = 0.7
+battery_constant = 0.8
 # 8.86 - 0.47
 # 7.54 - 1.0
 
