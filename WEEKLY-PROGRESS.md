@@ -98,4 +98,5 @@
 * New sensor tray: **ok**
 * Code tweaks: **ok**
 * Robot traverses full path: **success**
+* Optical tuning: **ok**
 
