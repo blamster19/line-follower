@@ -107,8 +107,6 @@ def debug(mode, new_is_on, sensors):
         sleep(sleep_time)
     if mode=='remote':
         rc_PIN = Pin(rc_pin, Pin.IN)
-#         is_on = is_on
-#         print(rc_PIN.value())
         if not rc_PIN.value():
             new_is_on = False if new_is_on else True
             sleep(0.3)
@@ -157,9 +155,6 @@ if __name__ == "__main__":
                         is_on = False if is_on else True
                     shared["pulse_len"] = 0
                     shared["new_pulse"] = False
-            # if not rc_PIN.value():
-            #     is_on = False if is_on else True
-            #     sleep(0.3)
             is_on = True
             if not is_on:
                 if not stopped:

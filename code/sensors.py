@@ -38,8 +38,6 @@ class Sensors:
         self.threshold_min = threshold_min
         self.threshold_max = threshold_max
 
-        #self.prev_sensor_values = {pos: 0.0 for pos in positions_to_mux_channel}
-
         self.select_lines = [Pin(pin, Pin.OUT) for pin in select_pins]
 
         self.adc = ADC(Pin(adc_pin))
@@ -66,14 +64,10 @@ class Sensors:
             utime.sleep_us(250)
             raw_adc = self.adc.read_u16()  # 16-bit ADC read
             voltage = (raw_adc / 65535.0) * 5  # Convert to voltage assuming 5V reference
-            #print('channel' + str(channel) + ', position:' + str(i) + ':' + str(voltage))
             self.voltages[i] = voltage  # Store the voltage in the correct position
-
-        #print(self.voltages)
 
         # calculate and update the average of past readings
         self.get_truncated_and_smoothed_voltages()
-        # self.smoothed_prev_sensor_values = smoothed_voltages
 
         return self.voltages
        
@@ -89,10 +83,6 @@ class Sensors:
         weighted_sum = 0.0
                 
         for i, voltage in enumerate(self.voltages):
-            
-#             if i == 0:
-#                 continue
-
             total_weight += voltage
 
             weighted_sum += float(i + 1) * voltage
