@@ -1,4 +1,5 @@
 from machine import ADC, Pin
+import utime
 
 class Sensors:
     """
@@ -20,7 +21,7 @@ class Sensors:
     """
 
 
-    def __init__(self, positions_to_mux_channel, select_pins, adc_pin, alpha=0.9, memory_length=5, threshold_min = 0.8, threshold_max=3.4):
+    def __init__(self, mux_channels, select_pins, adc_pin, alpha=0.9, memory_length=5, threshold_min = 0.8, threshold_max=3.4):
         """
         Initializes the sensors using an analog multiplexer.
         * positions_to_mux_channel: Mapping of position float -> mux channel (0-7)
@@ -31,7 +32,7 @@ class Sensors:
         * threshold_min: voltages below this are treated as no line detected
         * threshold max: voltages above this are treated as line fully detected
         """
-        self.positions_to_mux_channel = positions_to_mux_channel
+        self.mux_channels = mux_channels
         self.alpha = alpha
         self.memory_length = memory_length
         self.threshold_min = threshold_min
@@ -50,7 +51,7 @@ class Sensors:
         Sets the multiplexer select lines to select the given channel (0-7)
         """
         for i, pin in enumerate(self.select_lines):
-            pin.value((channel >> i) & 1)    
+            pin.value((channel >> i) & 1) 
 
     def read_sensors(self):
         """
@@ -60,12 +61,15 @@ class Sensors:
 
         # read voltages
 
-        for position, channel in self.positions_to_mux_channel.items():
+        for i, channel in enumerate(self.mux_channels):
             self.select_channel(channel)
+            utime.sleep_us(250)
             raw_adc = self.adc.read_u16()  # 16-bit ADC read
             voltage = (raw_adc / 65535.0) * 5  # Convert to voltage assuming 5V reference
-            self.voltages[int(position)-1] = voltage  # Store the voltage in the correct position
+            #print('channel' + str(channel) + ', position:' + str(i) + ':' + str(voltage))
+            self.voltages[i] = voltage  # Store the voltage in the correct position
 
+        #print(self.voltages)
 
         # calculate and update the average of past readings
         self.get_truncated_and_smoothed_voltages()
@@ -85,6 +89,9 @@ class Sensors:
         weighted_sum = 0.0
                 
         for i, voltage in enumerate(self.voltages):
+            
+#             if i == 0:
+#                 continue
 
             total_weight += voltage
 
@@ -121,3 +128,4 @@ class Sensors:
         Updates the value of self.smoothed_prev_sensor_values.
         """
         return self.get_position_weighted_average()
+
