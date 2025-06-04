@@ -48,3 +48,54 @@
 * Sensor code cleanup: **ok**
 * Update of chassis model: **ok**
 * New parts order: **ok**
+
+## 2025-04-14 -- 2025-04-20
+
+* Print of new chassis: **ok**
+* Soldering sensors: **ok**
+* Code tweaks: **ok**
+* Sharp turn management: **ok**
+
+## 2025-04-21 -- ##2025-04-27
+
+* Soldering sensors: **ok**
+* Code tweaks: **ok**
+* Fried pin expander: **failed**
+	* Pin expander melted the duc tape and stopped working
+	* Probably because of prolonged usage
+
+## 2025-04-28 -- 2025-05-04
+
+* May Long Weekend
+
+## 2025-05-05 -- 2025-05-11
+
+* Analog multiplexers ordered instead of expander
+
+## 2025-05-12 -- 2025-05-18
+
+* Multiplexer: **ok**
+* Drive test: **ok**
+* New sensor code: **ok**
+
+## 2025-05-19 -- 2025-05-25
+
+* Code tweaks: **ok**
+
+## 2025-05-26 -- 2025-06-01
+
+* Installation of voltage converter: **ok**
+	* Battery voltage drops caused noticeable speed difference
+* New sensor tray: **ok**
+* Code tweaks: **ok**
+* Installation of two additional sensors: **ok**
+* Installation of pipe cleaner in front of sensors: **ok**
+* Optical tuning: **ok**
+* Robot traverses full path: **partial**
+
+## 2025-06-02 -- 2025-06-08
+
+* New sensor tray: **ok**
+* Code tweaks: **ok**
+* Robot traverses full path: **success**
+
