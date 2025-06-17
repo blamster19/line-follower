@@ -100,3 +100,6 @@
 * Robot traverses full path: **success**
 * Optical tuning: **ok**
 
+## 2025-06-09 -- 2025-06-15
+
+* Competition finale
